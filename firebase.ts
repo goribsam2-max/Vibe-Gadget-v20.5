@@ -20,13 +20,8 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig);
 export const auth = getAuth(app);
 
-// Modern Firestore cache settings (replaces deprecated enableIndexedDbPersistence)
-export const db = initializeFirestore(app, {
-  experimentalForceLongPolling: true,
-  localCache: persistentLocalCache({
-    tabManager: persistentMultipleTabManager()
-  })
-});
+// Use default Firestore config instead of experimental settings to prevent INTERNAL ASSERTION errors
+export const db = initializeFirestore(app, {});
 
 import { getMessaging, isSupported } from "firebase/messaging";
 export const messaging = async () => {

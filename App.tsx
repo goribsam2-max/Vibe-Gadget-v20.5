@@ -368,7 +368,6 @@ const AppContent: React.FC = () => {
           } else {
             // Auto-create document if missing to avoid orphaned auth users
             try {
-              const { setDoc } = await import("firebase/firestore");
               const newUserData = {
                 uid: currentUser.uid,
                 email: currentUser.email || "",
