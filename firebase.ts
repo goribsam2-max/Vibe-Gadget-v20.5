@@ -9,7 +9,7 @@ import {
 
 const firebaseConfig = {
   apiKey: "AIzaSyC1vnVFbzezdpqAxjU5GXgAxu63DN05eyE",
-  authDomain: "auth.vibegadgets.shop",
+  authDomain: "vibegadgets-ae9d1.firebaseapp.com",
   projectId: "vibegadgets-ae9d1",
   storageBucket: "vibegadgets-ae9d1.firebasestorage.app",
   messagingSenderId: "50155075863",
