@@ -12,7 +12,7 @@ export const uploadToImgbb = async (file: File): Promise<string> => {
     });
     const result = await response.json();
     if (result.success) {
-      return result.data.url;
+      return result.data.url.replace(/^http:\/\//i, 'https://');
     } else {
       throw new Error(result.error.message || 'Upload failed');
     }

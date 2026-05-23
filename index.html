@@ -20,6 +20,37 @@
         console.log("%c Welcome to Vibe Gadgets! ", "background: #18181b; color: #fff; font-size: 16px; font-weight: bold; border-radius: 4px; padding: 4px;");
         console.log("%c Built with ❤️ by our Custom Dev Team.", "color: #ec4899; font-weight: bold; font-family: sans-serif; font-size: 14px;");
         
+        // Force replace http with https in images
+        document.addEventListener('DOMContentLoaded', () => {
+          const forceHttps = (node) => {
+            if (node.tagName === 'IMG' && node.src && node.src.startsWith('http://') && !node.src.includes('localhost')) {
+              node.src = node.src.replace(/^http:\/\//i, 'https://');
+            }
+          };
+          
+          const observer = new MutationObserver((mutations) => {
+            mutations.forEach(mutation => {
+              if (mutation.type === 'attributes' && mutation.attributeName === 'src') {
+                forceHttps(mutation.target);
+              } else if (mutation.addedNodes.length) {
+                mutation.addedNodes.forEach(node => {
+                  if (node.tagName === 'IMG') forceHttps(node);
+                  else if (node.querySelectorAll) {
+                    node.querySelectorAll('img').forEach(forceHttps);
+                  }
+                });
+              }
+            });
+          });
+          
+          observer.observe(document.documentElement, {
+            childList: true,
+            subtree: true,
+            attributes: true,
+            attributeFilter: ['src']
+          });
+        });
+
         const origLog = console.log;
         const origError = console.error;
         const origWarn = console.warn;
