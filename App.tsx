@@ -557,6 +557,7 @@ import { MobileGuard } from './components/MobileGuard';
 // import { NotificationPermissionModal } from './components/ui/NotificationPermissionModal';
 
 import { FloatingChat } from './components/FloatingChat';
+import { InstallPwaGuide } from './components/InstallPwaGuide';
 
 const App: React.FC = () => {
   return (
@@ -567,6 +568,7 @@ const App: React.FC = () => {
           <AppContent />
           {/* <NotificationPermissionModal /> */}
           <FloatingChat />
+          <InstallPwaGuide />
         </Router>
       </ToastProvider>
     </ThemeProvider>

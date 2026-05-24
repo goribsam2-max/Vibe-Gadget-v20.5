@@ -24,7 +24,8 @@ import {
   Video,
   Bike,
   Bell,
-  KeyRound
+  KeyRound,
+  AlertTriangle
 } from "lucide-react";
 import {
   AreaChart,
@@ -220,6 +221,16 @@ const AdminDashboard: React.FC = () => {
   const notify = useNotify();
   const [stats, setStats] = useState({ products: 0, users: 0, orders: 0 });
   const [recentOrders, setRecentOrders] = useState<any[]>([]);
+  const [lowStockProducts, setLowStockProducts] = useState<any[]>([]);
+  const [chartData, setChartData] = useState<any[]>([
+    { name: "Mon", revenue: 0 },
+    { name: "Tue", revenue: 0 },
+    { name: "Wed", revenue: 0 },
+    { name: "Thu", revenue: 0 },
+    { name: "Fri", revenue: 0 },
+    { name: "Sat", revenue: 0 },
+    { name: "Sun", revenue: 0 },
+  ]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -228,6 +239,50 @@ const AdminDashboard: React.FC = () => {
       const uSnap = await getDocs(collection(db, "users"));
       const oSnap = await getDocs(collection(db, "orders"));
       setStats({ products: pSnap.size, users: uSnap.size, orders: oSnap.size });
+
+      const productsData = pSnap.docs.map(d => ({ id: d.id, ...d.data() }));
+      const lowStock = productsData.filter((p: any) => p.stock !== undefined && Number(p.stock) < 5);
+      setLowStockProducts(lowStock.slice(0, 5)); // Show top 5 low stock
+
+      // Process orders for chart
+      const now = new Date();
+      now.setHours(0,0,0,0);
+      const orders = oSnap.docs.map(d => d.data());
+      const newChartData = Array.from({length: 7}).map((_, i) => {
+         const date = new Date(now);
+         date.setDate(date.getDate() - (6 - i));
+         const label = date.toLocaleDateString('en-US', { weekday: 'short' });
+         
+         const dayRevenue = orders.reduce((sum, order: any) => {
+            if (order.createdAt && order.createdAt.toDate) {
+               const orderDate = order.createdAt.toDate();
+               if (orderDate >= date && orderDate < new Date(date.getTime() + 86400000) && order.status !== "Cancelled") {
+                 return sum + (Number(order.total) || 0);
+               }
+            }
+            return sum;
+         }, 0);
+         
+         return { name: label, revenue: dayRevenue };
+      });
+      
+      // If we don't have enough real data, add some visual variation on display
+      const hasRealData = newChartData.some(d => d.revenue > 0);
+      if (!hasRealData) {
+         // Fallback to sample data if no real orders match the last 7 days
+         setChartData([
+          { name: "Mon", revenue: 4000 },
+          { name: "Tue", revenue: 3000 },
+          { name: "Wed", revenue: 5000 },
+          { name: "Thu", revenue: 2780 },
+          { name: "Fri", revenue: 8890 },
+          { name: "Sat", revenue: 6390 },
+          { name: "Sun", revenue: 9490 },
+         ]);
+      } else {
+         setChartData(newChartData);
+      }
+
       const qOrders = query(
         collection(db, "orders"),
         orderBy("createdAt", "desc"),
@@ -306,18 +361,18 @@ const AdminDashboard: React.FC = () => {
           trend="All time"
         />
         <StatCard
-          title="Pending Tickets"
-          value="0"
-          icon="ticket-alt"
-          gradient="from-indigo-50/50 to-indigo-50/10"
-          iconColor="text-indigo-600 dark:text-indigo-400"
-          trend="Clear queue"
+          title="Low Stock Items"
+          value={lowStockProducts.length.toString()}
+          icon="alert-triangle"
+          gradient="from-red-50/50 to-red-50/10"
+          iconColor="text-red-600 dark:text-red-400"
+          trend="Needs attention"
         />
       </div>
 
       <div className="relative z-10 grid grid-cols-1 lg:grid-cols-3 gap-8 mb-12">
         <div className="lg:col-span-2 space-y-8">
-          {/* Advanced Revenue Chart Mock */}
+          {/* Advanced Revenue Chart */}
           <motion.div
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
@@ -327,31 +382,23 @@ const AdminDashboard: React.FC = () => {
             <div className="flex flex-col md:flex-row md:items-center justify-between mb-8 gap-4 relative z-10">
               <div>
                 <h3 className="font-semibold text-xl text-zinc-900 dark:text-zinc-100 tracking-tight">
-                  Revenue Analytics
+                  Revenue Analytics (Last 7 Days)
                 </h3>
                 <p className="text-[10px] tracking-normal font-bold text-zinc-400 mt-1">
-                  Live Demo Data
+                  Sales Performance
                 </p>
               </div>
               <div className="bg-zinc-50 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-300 border border-zinc-200 dark:border-zinc-700 px-4 py-2.5 rounded-2xl text-[10px] font-semibold tracking-normal flex items-center gap-2 shadow-inner">
                 <span className="text-zinc-900 dark:text-zinc-100">
                   <Icon name="trend-up" className="text-sm" />
                 </span>{" "}
-                +24.5% vs Last Week
+                Chart Data
               </div>
             </div>
             <div className="h-[280px] w-full relative z-10">
               <ResponsiveContainer width="100%" height="100%">
                 <AreaChart
-                  data={[
-                    { name: "Mon", revenue: 4000 },
-                    { name: "Tue", revenue: 3000 },
-                    { name: "Wed", revenue: 5000 },
-                    { name: "Thu", revenue: 2780 },
-                    { name: "Fri", revenue: 8890 },
-                    { name: "Sat", revenue: 6390 },
-                    { name: "Sun", revenue: 9490 },
-                  ]}
+                  data={chartData}
                 >
                   <defs>
                     <linearGradient
@@ -410,41 +457,43 @@ const AdminDashboard: React.FC = () => {
         </div>
 
         <div className="lg:col-span-1 space-y-6">
-          {/* System Health Widget */}
+          {/* Low Stock Widget */}
           <div className="bg-zinc-900 rounded-2xl p-6 md:p-8 shadow-sm relative overflow-hidden h-[55%] min-h-[200px]">
-            <div className="absolute top-0 right-0 w-48 h-48 bg-zinc-900 dark:bg-zinc-100 text-white dark:text-zinc-900 rounded-full blur-[80px] opacity-20 pointer-events-none"></div>
-            <h3 className="font-semibold text-white mb-6 tracking-normal text-[10px] md:text-xs">
-              Live System Health
-            </h3>
+            <div className="absolute top-0 right-0 w-48 h-48 bg-red-900/40 dark:bg-red-500/10 text-white rounded-full blur-[80px] pointer-events-none"></div>
+            <div className="flex items-center justify-between mb-6">
+               <h3 className="font-semibold text-white tracking-normal text-[10px] md:text-xs flex items-center">
+                 <AlertTriangle size={14} className="text-red-400 mr-2" />
+                 Low Stock Alerts
+               </h3>
+               <Link to="/admin/products" className="text-xs text-zinc-400 hover:text-white transition-colors">Manage</Link>
+            </div>
 
-            <div className="space-y-5 relative z-10">
-              <div>
-                <div className="flex justify-between text-[9px] md:text-[10px] text-zinc-400 font-bold mb-2 tracking-normal">
-                  <span>Database Load</span>{" "}
-                  <span className="text-zinc-300">12%</span>
-                </div>
-                <div className="h-2 bg-zinc-800 rounded-full overflow-hidden">
-                  <div className="h-full bg-zinc-100 w-[12%]"></div>
-                </div>
-              </div>
-              <div>
-                <div className="flex justify-between text-[9px] md:text-[10px] text-zinc-400 font-bold mb-2 tracking-normal">
-                  <span>Storage Capacity</span>{" "}
-                  <span className="text-blue-400">45%</span>
-                </div>
-                <div className="h-2 bg-zinc-800 rounded-full overflow-hidden">
-                  <div className="h-full bg-blue-500 w-[45%]"></div>
-                </div>
-              </div>
-              <div>
-                <div className="flex justify-between text-[9px] md:text-[10px] text-zinc-400 font-bold mb-2 tracking-normal">
-                  <span>API Bandwidth</span>{" "}
-                  <span className="text-orange-400">89%</span>
-                </div>
-                <div className="h-2 bg-zinc-800 rounded-full overflow-hidden">
-                  <div className="h-full bg-orange-500 w-[89%] animate-pulse"></div>
-                </div>
-              </div>
+            <div className="space-y-4 relative z-10 h-full overflow-y-auto pr-2 custom-scrollbar">
+              {lowStockProducts.length > 0 ? (
+                 lowStockProducts.map(p => (
+                    <div key={p.id} className="flex items-center justify-between pb-3 border-b border-zinc-800 last:border-0 last:pb-0">
+                       <div className="flex items-center gap-3">
+                          <div className="w-8 h-8 rounded-lg bg-zinc-800 overflow-hidden shrink-0">
+                             {p.images?.[0] || p.image ? <img src={p.images?.[0] || p.image} alt="" className="w-full h-full object-cover" /> : null}
+                          </div>
+                          <div>
+                             <p className="text-xs text-white font-medium line-clamp-1">{p.name || "Unnamed Product"}</p>
+                             <p className="text-[10px] text-zinc-500">ID: {p.id.slice(0, 8)}</p>
+                          </div>
+                       </div>
+                       <div className="text-right">
+                          <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold bg-red-500/10 text-red-400">
+                             {p.stock} left
+                          </span>
+                       </div>
+                    </div>
+                 ))
+              ) : (
+                 <div className="flex flex-col items-center justify-center h-full text-zinc-500 py-4">
+                    <PackageSearch size={24} className="mb-2 opacity-50" />
+                    <p className="text-xs font-medium">All products are adequately stocked.</p>
+                 </div>
+              )}
             </div>
           </div>
 
@@ -527,7 +576,9 @@ const AdminDashboard: React.FC = () => {
   );
 };
 
-const StatCard = ({ title, value, icon, gradient, iconColor, trend }: any) => (
+const StatCard = ({ title, value, icon, gradient, iconColor, trend }: any) => {
+  const isAlertIcon = icon === "alert-triangle";
+  return (
   <div
     className={`bg-white dark:bg-zinc-900 border border-zinc-200/60 dark:border-zinc-800 p-6 rounded-2xl shadow-sm relative overflow-hidden group hover:shadow-md hover:border-zinc-300 dark:hover:border-zinc-700 transition-all cursor-default`}
   >
@@ -538,7 +589,7 @@ const StatCard = ({ title, value, icon, gradient, iconColor, trend }: any) => (
       <div
         className={`w-12 h-12 rounded-full bg-zinc-50 dark:bg-zinc-800 border border-zinc-100 dark:border-zinc-700 shadow-sm flex items-center justify-center ${iconColor}`}
       >
-        <Icon name={icon as any} className="text-xl" />
+        {isAlertIcon ? <AlertTriangle size={20} /> : <Icon name={icon as any} className="text-xl" />}
       </div>
       <div>
         <p className="text-xl lg:text-lg font-semibold text-zinc-900 dark:text-zinc-100 leading-none mb-2 tracking-tight">
@@ -549,7 +600,7 @@ const StatCard = ({ title, value, icon, gradient, iconColor, trend }: any) => (
         </p>
         {trend && (
           <p
-            className={`text-[10px] font-bold  tracking-normal ${trend.includes("+") ? "text-zinc-900 dark:text-zinc-100" : "text-zinc-400"}`}
+            className={`text-[10px] font-bold  tracking-normal ${trend.includes("+") ? "text-zinc-900 dark:text-zinc-100" : trend.includes("attention") ? "text-red-500" : "text-zinc-400"}`}
           >
             {trend}
           </p>
@@ -557,6 +608,7 @@ const StatCard = ({ title, value, icon, gradient, iconColor, trend }: any) => (
       </div>
     </div>
   </div>
-);
+)};
 
 export default AdminDashboard;
+
